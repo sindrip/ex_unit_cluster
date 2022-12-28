@@ -8,7 +8,11 @@ defmodule ExUnit.Cluster.Config do
 
   @spec new(map()) :: t()
   def new(%{module: module, test: test} = _ctx) do
-    prefix = "#{Atom.to_string(module)} #{Atom.to_string(test)}"
+    prefix =
+      "#{Atom.to_string(module)} #{Atom.to_string(test)}"
+      |> String.replace([".", " "], "_")
+      |> String.to_atom()
+
     %__MODULE__{prefix: prefix, nodes: []}
   end
 
@@ -17,10 +21,7 @@ defmodule ExUnit.Cluster.Config do
 
   @spec spawn_node(t()) :: t()
   def spawn_node(cluster_config) do
-    name =
-      "#{cluster_config.prefix}-#{length(cluster_config.nodes)}"
-      |> String.replace([".", " "], "_")
-      |> String.to_atom()
+    name = :"#{cluster_config.prefix}-#{length(cluster_config.nodes)}"
 
     {:ok, _pid, node} =
       :peer.start_link(%{
