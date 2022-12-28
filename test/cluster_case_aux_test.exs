@@ -1,5 +1,4 @@
 defmodule ClusterCaseAuxTest do
-  # use DistributedCase, async: true
   use ExUnit.Cluster.Case, async: true
 
   test "spawn nodes", %{cluster_config: cluster_config} do

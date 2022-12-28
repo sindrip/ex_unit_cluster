@@ -1,4 +1,7 @@
 defmodule ExUnit.Cluster do
+  @moduledoc """
+  Documentation for `ExUnit.Cluster`
+  """
   alias ExUnit.Cluster
 
   @spec spawn_node(cluster_config :: Cluster.Config.t()) :: Cluster.Config.t()

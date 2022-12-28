@@ -5,9 +5,12 @@ defmodule ExUnit.Cluster.MixProject do
     [
       app: :exunit_cluster,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      elixir: ">= 1.13.4",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_apps: [:ex_unit]
+      ]
     ]
   end
 
@@ -21,7 +24,9 @@ defmodule ExUnit.Cluster.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:local_cluster, ">= 0.0.0", only: :test, optional: true}
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.2", only: [:dev], runtime: false},
+      {:ex_doc, ">= 0.0.0", only: [:docs], runtime: false}
     ]
   end
 end
