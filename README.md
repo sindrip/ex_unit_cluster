@@ -1,6 +1,6 @@
 # ExUnit Cluster
 
-NOTE: Requires OTP 25
+NOTE: Requires at least OTP 25.1
 
 Spin up dynamic clusters in ExUnit tests with no special setup necessary.
 
