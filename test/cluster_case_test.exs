@@ -8,11 +8,12 @@ defmodule ClusterCaseTest do
       |> ExUnit.Cluster.spawn_node()
       |> ExUnit.Cluster.spawn_node()
 
-    nodes = ExUnit.Cluster.nodes(cluster_config)
+    nodes = Map.keys(ExUnit.Cluster.nodes(cluster_config))
 
     res =
-      :erpc.multicall(nodes, Node, :list, [[:visible, :this]])
-      |> Enum.flat_map(fn {_, y} -> y end)
+      Enum.flat_map(nodes, fn n ->
+        ExUnit.Cluster.call(cluster_config, n, Node, :list, [[:visible, :this]])
+      end)
 
     assert length(res) == 9
     assert MapSet.size(MapSet.new(res)) == 3
