@@ -4,12 +4,12 @@ defmodule ExUnit.Cluster do
   """
   alias ExUnit.Cluster
 
-  @spec spawn_node(cluster_config :: Cluster.Config.t()) :: Cluster.Config.t()
-  defdelegate spawn_node(cluster_config), to: Cluster.Config
+  @spec spawn_node(cluster :: pid()) :: node()
+  defdelegate spawn_node(pid), to: Cluster.Manager
 
-  @spec nodes(cluster_config :: Cluster.Config.t()) :: list(node())
-  defdelegate nodes(cluster_config), to: Cluster.Config
+  @spec get_nodes(pid :: pid()) :: list(node())
+  defdelegate get_nodes(pid), to: Cluster.Manager
 
-  @spec call(Cluster.Config.t(), atom(), module(), atom(), list(term())) :: term()
-  defdelegate call(cluster_config, node, module, function, args), to: Cluster.Config
+  @spec call(pid(), node(), module(), atom(), list(term())) :: term()
+  defdelegate call(pid, node, module, function, args), to: Cluster.Manager
 end

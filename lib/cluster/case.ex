@@ -7,7 +7,9 @@ defmodule ExUnit.Cluster.Case do
   use ExUnit.CaseTemplate
 
   setup ctx do
-    cluster_config = Cluster.Config.new(ctx)
-    Map.put(ctx, :cluster_config, cluster_config)
+    opts = [test_module: ctx.module, test_name: ctx.test]
+    {:ok, cluster} = Cluster.Manager.start_link(opts)
+
+    Map.put(ctx, :cluster, cluster)
   end
 end

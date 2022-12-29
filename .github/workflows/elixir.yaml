@@ -100,8 +100,8 @@ jobs:
     - name: Credo
       run: mix credo
 
-    - name: Dialyzer
-      run: MIX_ENV=dev mix dialyzer
+    #- name: Dialyzer
+    #  run: MIX_ENV=dev mix dialyzer
 
     - name: No unused dependencies
       run: mix deps.unlock --check-unused
