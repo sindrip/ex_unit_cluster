@@ -1,6 +1,6 @@
 # ExUnit Cluster
 
-NOTE: Requires at least OTP 25.1
+NOTE: Requires at least OTP 25 (which is first supported by elixir 1.13.4).
 
 Spin up dynamic clusters in ExUnit tests with no special setup necessary.
 
@@ -12,11 +12,11 @@ defmodule MyTest do
   use ExUnit.Cluster.Case, async: true
 
   test "I can spin up a 3 node cluster", ctx do
-    n1 = Cluster.start_node(cluster)
-    n2 = Cluster.start_node(cluster)
-    n3 = Cluster.start_node(cluster)
+    n1 = Cluster.start_node(ctx.cluster)
+    n2 = Cluster.start_node(ctx.cluster)
+    n3 = Cluster.start_node(ctx.cluster)
 
-    nodes = Cluster.get_nodes(cluster)
+    nodes = Cluster.get_nodes(ctx.cluster)
 
     assert Enum.sort([n1, n2, n3]) == Enum.sort(nodes)
 
