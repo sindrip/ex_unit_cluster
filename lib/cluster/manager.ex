@@ -80,8 +80,10 @@ defmodule ExUnit.Cluster.Manager do
       end
     end
 
-    app = Mix.Project.config()[:app]
+    :peer.call(pid, Application, :ensure_all_started, [:mix])
+    :peer.call(pid, Mix, :env, [Mix.env()])
 
+    app = Mix.Project.config()[:app]
     :peer.call(pid, Application, :ensure_all_started, [app])
 
     for node_pid <- Map.values(state.nodes) do
