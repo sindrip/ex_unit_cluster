@@ -1,36 +1,34 @@
 defmodule ClusterCaseAuxTest do
-  use ExUnit.Cluster.Case, async: true
-
-  alias ExUnit.Cluster
+  use ExUnitCluster.Case, async: true
 
   test "spawn nodes", %{cluster: cluster} do
-    n1 = Cluster.Manager.start_node(cluster)
-    n2 = Cluster.Manager.start_node(cluster)
-    n3 = Cluster.Manager.start_node(cluster)
+    n1 = ExUnitCluster.start_node(cluster)
+    n2 = ExUnitCluster.start_node(cluster)
+    n3 = ExUnitCluster.start_node(cluster)
 
-    nodes = Cluster.get_nodes(cluster)
+    nodes = ExUnitCluster.get_nodes(cluster)
 
     assert Enum.sort([n1, n2, n3]) == Enum.sort(nodes)
 
     res =
       Enum.flat_map(nodes, fn n ->
-        Cluster.call(cluster, n, Node, :list, [[:visible, :this]])
+        ExUnitCluster.call(cluster, n, Node, :list, [[:visible, :this]])
       end)
 
     assert length(res) == 9
     assert MapSet.size(MapSet.new(res)) == 3
 
     for n <- Enum.take_random(nodes, length(nodes)) do
-      :ok = Cluster.stop_node(cluster, n)
+      :ok = ExUnitCluster.stop_node(cluster, n)
 
-      nodes = Cluster.get_nodes(cluster)
+      nodes = ExUnitCluster.get_nodes(cluster)
 
       # Allow the nodedown to be propagated
       Process.sleep(100)
 
       res =
         Enum.flat_map(nodes, fn n ->
-          Cluster.call(cluster, n, Node, :list, [[:visible, :this]])
+          ExUnitCluster.call(cluster, n, Node, :list, [[:visible, :this]])
         end)
 
       assert length(res) == length(nodes) ** 2

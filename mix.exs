@@ -17,7 +17,7 @@ defmodule ExUnit.Cluster.MixProject do
       source_url: @source_url,
       description: description(),
       dialyzer: [
-        plt_add_apps: [:ex_unit]
+        plt_add_apps: [:ex_unit, :mix]
       ]
     ]
   end

@@ -1,4 +1,4 @@
-defmodule ExUnit.Cluster.Manager do
+defmodule ExUnitCluster.Manager do
   @moduledoc false
 
   use GenServer
