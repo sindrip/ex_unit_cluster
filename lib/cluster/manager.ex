@@ -16,8 +16,11 @@ defmodule ExUnit.Cluster.Manager do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @spec spawn_node(pid()) :: node()
-  def spawn_node(pid), do: GenServer.call(pid, :spawn_node)
+  @spec start_node(pid()) :: node()
+  def start_node(pid), do: GenServer.call(pid, :start_node)
+
+  @spec stop_node(pid(), node()) :: :ok | {:error, :not_found}
+  def stop_node(pid, node), do: GenServer.call(pid, {:stop_node, node})
 
   @spec get_nodes(pid()) :: list(node())
   def get_nodes(pid), do: GenServer.call(pid, :get_nodes)
@@ -54,7 +57,7 @@ defmodule ExUnit.Cluster.Manager do
   end
 
   @impl true
-  def handle_call(:spawn_node, _from, state) do
+  def handle_call(:start_node, _from, state) do
     name = :peer.random_name(:"#{state.prefix}")
 
     {:ok, pid, node} =
@@ -64,10 +67,8 @@ defmodule ExUnit.Cluster.Manager do
         longnames: true,
         connection: :standard_io,
         args: [
-          '-loader inet',
-          '-hosts 127.0.0.1',
-          '-setcookie #{state.cookie}'
-          # '-connect_all false'
+          '-setcookie',
+          '#{state.cookie}'
         ]
       })
 
@@ -86,6 +87,19 @@ defmodule ExUnit.Cluster.Manager do
     state = %__MODULE__{state | nodes: Map.put(state.nodes, node, pid)}
 
     {:reply, node, state}
+  end
+
+  @impl true
+  def handle_call({:stop_node, node}, _from, state) do
+    case Map.get(state.nodes, node) do
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      pid ->
+        :peer.stop(pid)
+        state = %__MODULE__{state | nodes: Map.delete(state.nodes, node)}
+        {:reply, :ok, state}
+    end
   end
 
   def handle_call({:call, node, module, function, args}, _from, state) do
