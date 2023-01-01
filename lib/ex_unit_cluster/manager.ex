@@ -9,7 +9,7 @@ defmodule ExUnitCluster.Manager do
   #         cookie: String.t()
   #       }
 
-  @enforce_keys [:prefix, :nodes, :cookie]
+  @enforce_keys [:prefix, :nodes, :cookie, :test_file]
   defstruct @enforce_keys
 
   def start_link(opts) do
@@ -33,18 +33,20 @@ defmodule ExUnitCluster.Manager do
   def init(opts) do
     test_module = opts[:test_module]
     test_name = opts[:test_name]
+    test_file = opts[:test_file]
 
     prefix =
       "#{Atom.to_string(test_module)} #{Atom.to_string(test_name)}"
       |> String.replace([".", " "], "_")
       |> String.to_atom()
 
-    cookie = Base.url_encode64(:crypto.strong_rand_bytes(40))
+    cookie = Base.url_encode64(:rand.bytes(40))
 
     state = %__MODULE__{
       prefix: prefix,
       nodes: Map.new(),
-      cookie: cookie
+      cookie: cookie,
+      test_file: test_file
     }
 
     {:ok, state}
@@ -83,9 +85,16 @@ defmodule ExUnitCluster.Manager do
     :peer.call(pid, Application, :ensure_all_started, [:mix])
     :peer.call(pid, Mix, :env, [Mix.env()])
 
+    # We need to start :ex_unit to be able to compile the test file
+    # It would be nice to avoid doing this compilation on every node started
+    :peer.call(pid, Application, :ensure_all_started, [:ex_unit])
+    :peer.call(pid, Code, :compile_file, [state.test_file])
+
     app = Mix.Project.config()[:app]
     :peer.call(pid, Application, :ensure_all_started, [app])
 
+    # We should make it configurable if we want to connect all the nodes
+    # (if the application wants to form the cluster by itself)
     for node_pid <- Map.values(state.nodes) do
       :peer.call(node_pid, Node, :connect, [node])
     end
