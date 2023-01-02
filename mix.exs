@@ -1,4 +1,4 @@
-defmodule ExUnit.Cluster.MixProject do
+defmodule ExUnitCluster.MixProject do
   use Mix.Project
 
   @version "0.1.0"
