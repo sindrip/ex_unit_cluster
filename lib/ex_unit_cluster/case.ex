@@ -7,8 +7,7 @@ defmodule ExUnitCluster.Case do
   use ExUnit.CaseTemplate
 
   setup ctx do
-    opts = [test_module: ctx.module, test_name: ctx.test, test_file: ctx.file]
-    {:ok, cluster} = Manager.start_link(opts)
+    {:ok, cluster} = Manager.start_link(ctx)
 
     Map.put(ctx, :cluster, cluster)
   end
