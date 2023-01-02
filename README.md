@@ -6,15 +6,20 @@ Spin up dynamic clusters in ExUnit tests with no special setup necessary.
 
 You can run normal tests, alongside clustered tests.
 
-To run distributed tests simply use `ExUnit.Cluster.Case` in a test module
+To run distributed tests simply start a `ExUnitCluster.Manager` in a test module
 ```elixir
 defmodule MyTest do
-  use ExUnit.Cluster.Case, async: true
+  use ExUnit.Case, async: true
+
+  setup ctx do
+    cluster = start_supervised!({ExUnitCluster.Manager, ctx})
+    [cluster: cluster]
+  end
 
   test "I can spin up a 3 node cluster", ctx do
-    n1 = Cluster.start_node(ctx.cluster)
-    n2 = Cluster.start_node(ctx.cluster)
-    n3 = Cluster.start_node(ctx.cluster)
+    n1 = ExUnitCluster.start_node(ctx.cluster)
+    n2 = ExUnitCluster.start_node(ctx.cluster)
+    n3 = ExUnitCluster.start_node(ctx.cluster)
 
     nodes = Cluster.get_nodes(ctx.cluster)
 
@@ -22,7 +27,7 @@ defmodule MyTest do
 
     res =
       Enum.flat_map(nodes, fn n ->
-        Cluster.call(cluster, n, Node, :list, [[:visible, :this]])
+        ExUnitCluster.call(ctx.cluster, n, Node, :list, [[:visible, :this]])
       end)
 
     assert length(res) == 9

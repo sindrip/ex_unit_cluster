@@ -31,9 +31,9 @@ defmodule ExUnitCluster.Manager do
 
   @impl true
   def init(opts) do
-    test_module = opts[:test_module]
-    test_name = opts[:test_name]
-    test_file = opts[:test_file]
+    test_module = opts[:module]
+    test_name = opts[:name]
+    test_file = opts[:file]
 
     prefix =
       "#{Atom.to_string(test_module)} #{Atom.to_string(test_name)}"
