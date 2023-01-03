@@ -1,10 +1,5 @@
 defmodule ClusterCaseAuxTest do
-  use ExUnit.Case, async: true
-
-  setup ctx do
-    cluster = start_supervised!({ExUnitCluster.Manager, ctx})
-    [cluster: cluster]
-  end
+  use ExUnitCluster.Case, async: true
 
   test "spawn nodes", %{cluster: cluster} do
     n1 = ExUnitCluster.start_node(cluster)

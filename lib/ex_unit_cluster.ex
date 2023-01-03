@@ -47,6 +47,18 @@ defmodule ExUnitCluster do
         end
       end
 
+  Which is exactly what `ExUnitCluster.Case` does
+
+      defmodule ClusterTest do
+        use ExUnitCluster.Case, async: true
+
+        test "start node in test", %{cluster: cluster} do
+          node = ExUnitCluster.start_node(cluster)
+
+          node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
+          refute Node.self() == node_name
+        end
+      end
 
   """
   alias ExUnitCluster.Manager

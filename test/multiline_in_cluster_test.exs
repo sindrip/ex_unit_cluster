@@ -1,4 +1,3 @@
-# credo:disable-for-this-file
 defmodule MultilineInClusterTest do
   use ExUnit.Case, async: true
 

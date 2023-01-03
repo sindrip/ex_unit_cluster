@@ -1,14 +1,12 @@
 defmodule ExUnitCluster.Case do
   @moduledoc """
-  Extends ExUnit.Case to allow dynamic cluster creation
+  Extends `ExUnit.Case` to start a new `ExUnitCluster.Manager` for each test.
   """
-  alias ExUnitCluster.Manager
 
   use ExUnit.CaseTemplate
 
   setup ctx do
-    {:ok, cluster} = Manager.start_link(ctx)
-
-    Map.put(ctx, :cluster, cluster)
+    cluster = start_supervised!({ExUnitCluster.Manager, ctx})
+    [cluster: cluster]
   end
 end
