@@ -1,5 +1,6 @@
 defmodule ClusterCaseTest do
   use ExUnit.Case, async: true
+  doctest ExUnitCluster
 
   setup ctx do
     cluster = start_supervised!({ExUnitCluster.Manager, ctx})

@@ -1,5 +1,7 @@
 defmodule ExUnitCluster.Manager do
-  @moduledoc false
+  @moduledoc """
+  Documentation for `ExUnitCluster.Manager`
+  """
 
   use GenServer
 

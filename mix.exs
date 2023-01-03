@@ -50,7 +50,8 @@ defmodule ExUnitCluster.MixProject do
 
   defp docs do
     [
-      extras: ["README.md"]
+      extras: ["README.md"],
+      main: "ExUnitCluster"
     ]
   end
 end

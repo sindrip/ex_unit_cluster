@@ -16,20 +16,14 @@ defmodule MultilineInClusterTest do
 
     res_one =
       in_cluster cluster, n1 do
-        IO.inspect("I am node: #{Node.self()}")
-        IO.inspect("This is the first generated block")
-        :one
+        Node.self()
       end
-
-    assert ^res_one = :one
 
     res_two =
       in_cluster cluster, n2 do
-        IO.inspect("I am node: #{Node.self()}")
-        IO.inspect("This is the second generated block")
-        :two
+        Node.self()
       end
 
-    assert ^res_two = :two
+    refute res_one == res_two
   end
 end
