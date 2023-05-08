@@ -18,18 +18,18 @@ defmodule ExUnitCluster.Manager do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @spec start_node(pid()) :: node()
-  def start_node(pid), do: GenServer.call(pid, :start_node)
+  @spec start_node(pid(), timeout()) :: node()
+  def start_node(pid, timeout), do: GenServer.call(pid, :start_node, timeout)
 
-  @spec stop_node(pid(), node()) :: :ok | {:error, :not_found}
-  def stop_node(pid, node), do: GenServer.call(pid, {:stop_node, node})
+  @spec stop_node(pid(), node(), timeout()) :: :ok | {:error, :not_found}
+  def stop_node(pid, node, timeout), do: GenServer.call(pid, {:stop_node, node}, timeout)
 
   @spec get_nodes(pid()) :: list(node())
   def get_nodes(pid), do: GenServer.call(pid, :get_nodes)
 
-  @spec call(pid(), node(), module(), atom(), list(term())) :: term()
-  def call(pid, node, module, function, args),
-    do: GenServer.call(pid, {:call, node, module, function, args})
+  @spec call(pid(), node(), module(), atom(), list(term()), timeout()) :: term()
+  def call(pid, node, module, function, args, timeout),
+    do: GenServer.call(pid, {:call, node, module, function, args}, timeout)
 
   @impl true
   def init(opts) do
@@ -76,29 +76,29 @@ defmodule ExUnitCluster.Manager do
         ]
       })
 
-    :peer.call(pid, :code, :add_paths, [:code.get_path()])
+    peer_call(pid, :code, :add_paths, [:code.get_path()])
 
     for {app, _, _} <- Application.loaded_applications() do
       for {key, val} <- Application.get_all_env(app) do
-        :peer.call(pid, Application, :put_env, [app, key, val])
+        peer_call(pid, Application, :put_env, [app, key, val])
       end
     end
 
-    :peer.call(pid, Application, :ensure_all_started, [:mix])
-    :peer.call(pid, Mix, :env, [Mix.env()])
+    peer_call(pid, Application, :ensure_all_started, [:mix])
+    peer_call(pid, Mix, :env, [Mix.env()])
 
     # We need to start :ex_unit to be able to compile the test file
     # It would be nice to avoid doing this compilation on every node started
-    :peer.call(pid, Application, :ensure_all_started, [:ex_unit])
-    :peer.call(pid, Code, :compile_file, [state.test_file])
+    peer_call(pid, Application, :ensure_all_started, [:ex_unit])
+    peer_call(pid, Code, :compile_file, [state.test_file])
 
     app = Mix.Project.config()[:app]
-    :peer.call(pid, Application, :ensure_all_started, [app])
+    peer_call(pid, Application, :ensure_all_started, [app])
 
     # We should make it configurable if we want to connect all the nodes
     # (if the application wants to form the cluster by itself)
     for node_pid <- Map.values(state.nodes) do
-      :peer.call(node_pid, Node, :connect, [node])
+      peer_call(node_pid, Node, :connect, [node])
     end
 
     state = %__MODULE__{state | nodes: Map.put(state.nodes, node, pid)}
@@ -121,7 +121,11 @@ defmodule ExUnitCluster.Manager do
 
   def handle_call({:call, node, module, function, args}, _from, state) do
     pid = Map.get(state.nodes, node)
-    res = :peer.call(pid, module, function, args)
+    res = peer_call(pid, module, function, args)
     {:reply, res, state}
   end
+
+  # Top level API calls determine the timeout
+  defp peer_call(dest, module, fun, args),
+    do: :peer.call(dest, module, fun, args, :infinity)
 end
