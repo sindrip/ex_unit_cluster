@@ -6,11 +6,11 @@ defmodule ExUnitCluster.MixProject do
   def project do
     [
       app: :ex_unit_cluster,
-      version: "0.1.1",
+      version: "0.2.0",
       elixir: ">= 1.13.4",
       deps: deps(),
       package: package(),
-      preferred_cli_env: [docs: :docs],
+      preferred_cli_env: %{docs: :docs, "hex.build": :docs, "hex.publish": :docs},
       name: "ExUnit.Cluster",
       docs: docs(),
       source_url: @source_url,
