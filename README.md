@@ -64,7 +64,7 @@ end
 Which is exactly what `ExUnitCluster.Case` does
 
 ```elixir
-defmodule ClusterTest do
+defmodule ReadmeClusterTest do
   use ExUnitCluster.Case, async: true
 
   test "start node in test", %{cluster: cluster} do
