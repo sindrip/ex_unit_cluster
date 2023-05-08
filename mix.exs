@@ -1,13 +1,12 @@
 defmodule ExUnitCluster.MixProject do
   use Mix.Project
 
-  @version "0.1.1"
   @source_url "https://github.com/sindrip/ex_unit_cluster"
 
   def project do
     [
       app: :ex_unit_cluster,
-      version: @version,
+      version: "0.1.1",
       elixir: ">= 1.13.4",
       deps: deps(),
       package: package(),

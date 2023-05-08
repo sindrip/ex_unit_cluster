@@ -1,0 +1,50 @@
+name: Publish to Hex
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  check-tag-and-version:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: actions/checkout@v1
+      - name: Compare tag and package version
+        run: |
+          VERSION=$(awk -F\" '/version:/ {print "v" $2}' mix.exs)
+          TAG=$(echo $GITHUB_REF | awk -F\/ '/refs\/tags/ {print $3}')
+          echo "Version in mix.exs: $VERSION"
+          echo "Pushed tag: $TAG"
+
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "Error: Tag and version do not match"
+            exit 1
+          else
+            echo "Tag and version match"
+          fi
+  publish:
+    runs-on: ubuntu-latest
+    needs: check-tag-and-version
+    environment: 'hex'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '25'
+          elixir-version: '1.14'
+      - name: Publish package to hex.pm
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: |
+          echo "===> Install dependencies"
+          echo
+          mix do deps.get, deps.compile
+
+          echo "===> Build hex package"
+          echo
+          mix hex.build
+
+          echo "===> Publishing hex package"
+          echo
+          mix hex.publish --yes
