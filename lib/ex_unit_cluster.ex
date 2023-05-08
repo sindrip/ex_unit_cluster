@@ -1,66 +1,11 @@
 defmodule ExUnitCluster do
-  @moduledoc """
-  Helpers for writing tests on nodes in isolated clusters.
+  @external_resource "README.md"
+  @moduledoc File.read!("README.md")
+             |> String.split("<!-- README START -->")
+             |> Enum.at(1)
+             |> String.split("<!-- README END -->")
+             |> List.first()
 
-  This library relies on the [:peer](https://www.erlang.org/doc/man/peer.html)
-  module which was introduced in OTP 25.
-
-  ## Examples
-
-  The most straightforward way to start using `ExUnitCluster` for a distributed test,
-  is to start `ExUnitCluster.Manager` inside the test.
-
-      defmodule SimpleTest do
-        use ExUnit.Case, async: true
-
-        test "start node in test case", ctx do
-          # 1) Start the cluster manager under the test supervisor
-          cluster = start_supervised!({ExUnitCluster.Manager, ctx})
-          # 2) Start a node linked to the given manager
-          node = ExUnitCluster.start_node(cluster)
-
-          # 3) Make an RPC to the node
-          node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
-          refute Node.self() == node_name
-        end
-      end
-
-  If you want all tests in a module to use a cluster you can start `ExUnitCluster.Manager` in
-  `ExUnit.Callbacks.setup/1`.
-
-      defmodule ClusterTest do
-        use ExUnit.Case, async: true
-
-        setup ctx do
-          # 1) Start a cluster manager under the test supervisor for each test
-          cluster = start_supervised!({ExUnitCluster.Manager, ctx})
-          [cluster: cluster]
-        end
-
-        test "start node in test", %{cluster: cluster} do
-          # 2) Start a node in this test
-          node = ExUnitCluster.start_node(cluster)
-
-          # 3) Make an RPC to the node
-          node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
-          refute Node.self() == node_name
-        end
-      end
-
-  Which is exactly what `ExUnitCluster.Case` does
-
-      defmodule ClusterTest do
-        use ExUnitCluster.Case, async: true
-
-        test "start node in test", %{cluster: cluster} do
-          node = ExUnitCluster.start_node(cluster)
-
-          node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
-          refute Node.self() == node_name
-        end
-      end
-
-  """
   alias ExUnitCluster.Manager
 
   @spec start_node(cluster :: pid(), timeout :: timeout()) :: node()
