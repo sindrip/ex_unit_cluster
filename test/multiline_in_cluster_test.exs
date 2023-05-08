@@ -1,7 +1,6 @@
 defmodule MultilineInClusterTest do
   use ExUnit.Case, async: true
 
-  require ExUnitCluster
   import ExUnitCluster
 
   setup ctx do
