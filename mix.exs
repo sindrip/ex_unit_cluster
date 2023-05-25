@@ -6,7 +6,7 @@ defmodule ExUnitCluster.MixProject do
   def project do
     [
       app: :ex_unit_cluster,
-      version: "0.3.0",
+      version: "0.3.1",
       elixir: ">= 1.13.4",
       deps: deps(),
       package: package(),

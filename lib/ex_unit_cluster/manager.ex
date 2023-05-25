@@ -94,7 +94,9 @@ defmodule ExUnitCluster.Manager do
     peer_call(pid, Code, :compile_file, [state.test_file])
 
     if applications do
-      peer_call(pid, Application, :ensure_all_started, applications)
+      for app <- applications do
+        peer_call(pid, Application, :ensure_all_started, [app])
+      end
     else
       app = Mix.Project.config()[:app]
       peer_call(pid, Application, :ensure_all_started, [app])
