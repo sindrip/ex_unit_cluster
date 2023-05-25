@@ -8,8 +8,8 @@ defmodule ExUnitCluster do
 
   alias ExUnitCluster.Manager
 
-  @spec start_node(cluster :: pid(), timeout :: timeout()) :: node()
-  defdelegate start_node(pid, timeout \\ 60_000), to: Manager
+  @spec start_node(cluster :: pid(), opts :: keyword(), timeout :: timeout()) :: node()
+  defdelegate start_node(pid, opts \\ [], timeout \\ 60_000), to: Manager
 
   @spec stop_node(cluster :: pid(), node :: node(), timeout :: timeout()) ::
           :ok | {:error, :not_found}

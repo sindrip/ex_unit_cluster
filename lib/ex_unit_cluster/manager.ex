@@ -18,8 +18,8 @@ defmodule ExUnitCluster.Manager do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @spec start_node(pid(), timeout()) :: node()
-  def start_node(pid, timeout), do: GenServer.call(pid, :start_node, timeout)
+  @spec start_node(pid(), keyword(), timeout()) :: node()
+  def start_node(pid, opts, timeout), do: GenServer.call(pid, {:start_node, opts}, timeout)
 
   @spec stop_node(pid(), node(), timeout()) :: :ok | {:error, :not_found}
   def stop_node(pid, node, timeout), do: GenServer.call(pid, {:stop_node, node}, timeout)
@@ -61,8 +61,9 @@ defmodule ExUnitCluster.Manager do
   end
 
   @impl true
-  def handle_call(:start_node, _from, state) do
+  def handle_call({:start_node, opts}, _from, state) do
     name = :peer.random_name(:"#{state.prefix}")
+    applications = opts[:applications]
 
     {:ok, pid, node} =
       :peer.start_link(%{
@@ -92,8 +93,12 @@ defmodule ExUnitCluster.Manager do
     peer_call(pid, Application, :ensure_all_started, [:ex_unit])
     peer_call(pid, Code, :compile_file, [state.test_file])
 
-    app = Mix.Project.config()[:app]
-    peer_call(pid, Application, :ensure_all_started, [app])
+    if applications do
+      peer_call(pid, Application, :ensure_all_started, applications)
+    else
+      app = Mix.Project.config()[:app]
+      peer_call(pid, Application, :ensure_all_started, [app])
+    end
 
     # We should make it configurable if we want to connect all the nodes
     # (if the application wants to form the cluster by itself)
