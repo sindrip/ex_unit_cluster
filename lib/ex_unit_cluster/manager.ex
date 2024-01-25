@@ -79,6 +79,14 @@ defmodule ExUnitCluster.Manager do
         ]
       })
 
+    if join do
+      for %NodeInfo{join: node_join, pid: node_pid} <- Map.values(state.nodes) do
+        if node_join do
+          peer_call(node_pid, Node, :connect, [node])
+        end
+      end
+    end
+
     peer_call(pid, :code, :add_paths, [:code.get_path()])
 
     for {app, _, _} <- Application.loaded_applications() do
@@ -102,14 +110,6 @@ defmodule ExUnitCluster.Manager do
     else
       app = Mix.Project.config()[:app]
       peer_call(pid, Application, :ensure_all_started, [app])
-    end
-
-    if join do
-      for %NodeInfo{join: node_join, pid: node_pid} <- Map.values(state.nodes) do
-        if node_join do
-          peer_call(node_pid, Node, :connect, [node])
-        end
-      end
     end
 
     node_info = %NodeInfo{pid: pid, join: join}
