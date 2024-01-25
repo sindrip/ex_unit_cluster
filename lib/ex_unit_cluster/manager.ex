@@ -5,11 +5,12 @@ defmodule ExUnitCluster.Manager do
 
   use GenServer
 
-  # @typep t :: %__MODULE__{
-  #         prefix: atom(),
-  #         nodes: map(),
-  #         cookie: String.t()
-  #       }
+  defmodule NodeInfo do
+    @moduledoc false
+
+    @enforce_keys [:pid, :join]
+    defstruct @enforce_keys
+  end
 
   @enforce_keys [:prefix, :nodes, :cookie, :test_file]
   defstruct @enforce_keys
@@ -64,16 +65,17 @@ defmodule ExUnitCluster.Manager do
   def handle_call({:start_node, opts}, _from, state) do
     name = :peer.random_name(:"#{state.prefix}")
     applications = opts[:applications]
+    join = Keyword.get(opts, :join, true)
 
     {:ok, pid, node} =
       :peer.start_link(%{
         name: name,
-        host: '127.0.0.1',
+        host: ~c"127.0.0.1",
         longnames: true,
         connection: :standard_io,
         args: [
-          '-setcookie',
-          '#{state.cookie}'
+          ~c"-setcookie",
+          ~c"#{state.cookie}"
         ]
       })
 
@@ -102,13 +104,17 @@ defmodule ExUnitCluster.Manager do
       peer_call(pid, Application, :ensure_all_started, [app])
     end
 
-    # We should make it configurable if we want to connect all the nodes
-    # (if the application wants to form the cluster by itself)
-    for node_pid <- Map.values(state.nodes) do
-      peer_call(node_pid, Node, :connect, [node])
+    if join do
+      for %NodeInfo{join: node_join, pid: node_pid} <- Map.values(state.nodes) do
+        if node_join do
+          peer_call(node_pid, Node, :connect, [node])
+        end
+      end
     end
 
-    state = %__MODULE__{state | nodes: Map.put(state.nodes, node, pid)}
+    node_info = %NodeInfo{pid: pid, join: join}
+
+    state = %__MODULE__{state | nodes: Map.put(state.nodes, node, node_info)}
 
     {:reply, node, state}
   end
@@ -119,7 +125,7 @@ defmodule ExUnitCluster.Manager do
       nil ->
         {:reply, {:error, :not_found}, state}
 
-      pid ->
+      %NodeInfo{pid: pid} ->
         :peer.stop(pid)
         state = %__MODULE__{state | nodes: Map.delete(state.nodes, node)}
         {:reply, :ok, state}
@@ -127,7 +133,7 @@ defmodule ExUnitCluster.Manager do
   end
 
   def handle_call({:call, node, module, function, args}, _from, state) do
-    pid = Map.get(state.nodes, node)
+    %NodeInfo{pid: pid} = Map.get(state.nodes, node)
     res = peer_call(pid, module, function, args)
     {:reply, res, state}
   end
