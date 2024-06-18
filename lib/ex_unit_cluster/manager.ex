@@ -90,7 +90,15 @@ defmodule ExUnitCluster.Manager do
     peer_call(pid, :code, :add_paths, [:code.get_path()])
 
     for {app, _, _} <- Application.loaded_applications() do
-      for {key, val} <- Application.get_all_env(app) do
+      base_env = Application.get_all_env(app)
+
+      environment =
+        opts
+        |> Keyword.get(:environment, [])
+        |> Keyword.get(app, [])
+        |> Keyword.merge(base_env, fn _, v, _ -> v end)
+
+      for {key, val} <- environment do
         peer_call(pid, Application, :put_env, [app, key, val])
       end
     end
