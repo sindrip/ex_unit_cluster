@@ -74,4 +74,4 @@ jobs:
       run: mix deps.unlock --check-unused
 
     - name: Run tests
-      run: mix test
+      run: mix test --warnings-as-errors
