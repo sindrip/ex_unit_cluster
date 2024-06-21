@@ -29,16 +29,17 @@ defmodule ExUnitCluster do
     # on each node separately at the moment.
     module_name = :"#{:erlang.phash2(expressions)}"
 
-    quoted =
-      quote do
-        import ExUnit.Assertions
+    if :code.module_status(module_name) == :not_loaded do
+      quoted =
+        quote do
+          import ExUnit.Assertions
 
-        def run do
-          unquote(expressions)
+          def run do
+            unquote(expressions)
+          end
         end
-      end
-
-    Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+      Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+    end
 
     quote do
       ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [])
@@ -60,17 +61,19 @@ defmodule ExUnitCluster do
       |> Keyword.keys()
       |> Enum.map(&Macro.var(&1, nil))
 
-    quoted =
-      quote do
-        import ExUnit.Assertions
+    if :code.module_status(module_name) == :not_loaded do
+      quoted =
+        quote do
+          import ExUnit.Assertions
 
-        def run(unquote(env)) do
-          _ = unquote(env)
-          unquote(expressions)
+          def run(unquote(env)) do
+            _ = unquote(env)
+            unquote(expressions)
+          end
         end
-      end
 
-    Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+      Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+    end
 
     quote do
       ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [
