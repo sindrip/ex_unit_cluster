@@ -47,7 +47,7 @@ defmodule ExUnitCluster do
 
   @doc """
   Execute multiline code blocks on a specific node,
-  inheriting environment variables from the caller.
+  capturing variables from the caller scope.
   """
   defmacro in_cluster_env(cluster, node, do: expressions) do
     # We need a consistent random name, as this is compiled
