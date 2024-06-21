@@ -44,4 +44,37 @@ defmodule ExUnitCluster do
       ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [])
     end
   end
+
+  @doc """
+  Execute multiline code blocks on a specific node,
+  inheriting environment variables from the caller.
+  """
+  defmacro in_cluster_env(cluster, node, do: expressions) do
+    # We need a consistent random name, as this is compiled
+    # on each node separately at the moment.
+    module_name = :"#{:erlang.phash2(expressions)}"
+
+    env =
+      __CALLER__
+      |> Macro.Env.vars()
+      |> Keyword.keys()
+      |> Enum.map(&Macro.var(&1, nil))
+
+    quoted =
+      quote do
+        import ExUnit.Assertions
+
+        def run(unquote(env)) do
+          unquote(expressions)
+        end
+      end
+
+    Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+
+    quote do
+      ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [
+        unquote(env)
+      ])
+    end
+  end
 end

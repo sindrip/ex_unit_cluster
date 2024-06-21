@@ -24,4 +24,17 @@ defmodule MultilineInClusterTest do
 
     refute res_one == res_two
   end
+
+  test "in_cluster_env macro inherits environment variables of caller", %{cluster: cluster} do
+    n1 = ExUnitCluster.start_node(cluster)
+
+    caller_variable = "expected"
+
+    result =
+      in_cluster_env cluster, n1 do
+        caller_variable
+      end
+
+    assert caller_variable == result
+  end
 end
