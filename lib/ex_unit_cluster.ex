@@ -65,6 +65,7 @@ defmodule ExUnitCluster do
         import ExUnit.Assertions
 
         def run(unquote(env)) do
+          _ = unquote(env)
           unquote(expressions)
         end
       end
