@@ -38,6 +38,7 @@ defmodule ExUnitCluster do
             unquote(expressions)
           end
         end
+
       Module.create(module_name, quoted, Macro.Env.location(__ENV__))
     end
 
