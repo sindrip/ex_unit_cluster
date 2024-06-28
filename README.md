@@ -85,7 +85,7 @@ Add `ex_unit_cluster` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_unit_cluster, "~> 0.6.0"}
+    {:ex_unit_cluster, "~> 0.7.0"}
   ]
 end
 ```
