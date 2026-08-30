@@ -64,7 +64,7 @@ defmodule ExUnitCluster.Manager do
       cookie: cookie,
       test_file: test_file,
       test_module: test_module,
-      bytecode: :persistent_term.get({ExUnitCluster, test_module}, nil)
+      bytecode: shippable_bytecode(test_module, test_file)
     }
 
     {:ok, state}
@@ -150,6 +150,25 @@ defmodule ExUnitCluster.Manager do
       end
 
     peer_call(pid, Application, :put_all_env, [config])
+  end
+
+  # Shipping bytecode covers only the case module itself, so a test
+  # file that defines sibling modules must keep the compile fallback or
+  # the siblings never reach the peer. The transient elixir_compiler_N
+  # wrappers newer compilers leave loaded share the file's source and
+  # are not siblings.
+  defp shippable_bytecode(test_module, test_file) do
+    source = to_charlist(test_file)
+
+    file_modules =
+      for {mod, _} <- :code.all_loaded(),
+          not String.starts_with?(Atom.to_string(mod), "elixir_compiler_"),
+          Keyword.get(mod.module_info(:compile), :source) == source,
+          do: mod
+
+    if file_modules == [test_module] do
+      :persistent_term.get({ExUnitCluster, test_module}, nil)
+    end
   end
 
   # The case template captures the test module's bytecode after
