@@ -25,9 +25,9 @@ defmodule ExUnitCluster do
   Execute multiline code blocks on a specific node
   """
   defmacro in_cluster(cluster, node, do: expressions) do
-    # We need a consistent random name, as this is compiled
-    # on each node separately at the moment.
-    module_name = :"#{:erlang.phash2(expressions)}"
+    # The host and each peer compile this file separately, and every
+    # compilation must derive the same module name for this block.
+    module_name = block_module(__CALLER__, "InCluster")
 
     if :code.module_status(module_name) == :not_loaded do
       quoted =
@@ -39,7 +39,7 @@ defmodule ExUnitCluster do
           end
         end
 
-      Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+      Module.create(module_name, quoted, Macro.Env.location(__CALLER__))
     end
 
     quote do
@@ -52,9 +52,7 @@ defmodule ExUnitCluster do
   capturing variables from the caller scope.
   """
   defmacro in_cluster_env(cluster, node, do: expressions) do
-    # We need a consistent random name, as this is compiled
-    # on each node separately at the moment.
-    module_name = :"#{:erlang.phash2(expressions)}"
+    module_name = block_module(__CALLER__, "InClusterEnv")
 
     env =
       __CALLER__
@@ -73,7 +71,7 @@ defmodule ExUnitCluster do
           end
         end
 
-      Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+      Module.create(module_name, quoted, Macro.Env.location(__CALLER__))
     end
 
     quote do
@@ -81,5 +79,9 @@ defmodule ExUnitCluster do
         unquote(env)
       ])
     end
+  end
+
+  defp block_module(%Macro.Env{module: module, line: line}, flavor) do
+    Module.concat(module, "#{flavor}_#{line}")
   end
 end
