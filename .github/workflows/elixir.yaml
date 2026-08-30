@@ -21,8 +21,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        otp: ['25.0.0', '25.x']
-        elixir: ['1.13.4', '1.14.x']
+        # Explicit pairs: a cross-product would generate legs like
+        # Elixir 1.13 on OTP 28, which is not a supported combination.
+        include:
+          - otp: '25.0.x'
+            elixir: '1.13.4'
+          - otp: '28.x'
+            elixir: '1.18.x'
     steps:
     - name: Set up Elixir
       uses: erlef/setup-beam@v1

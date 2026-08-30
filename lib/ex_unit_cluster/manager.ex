@@ -32,7 +32,7 @@ defmodule ExUnitCluster.Manager do
   def call(pid, node, module, function, args, timeout),
     do: :peer.call(fetch_peer_pid!(pid, node), module, function, args, timeout)
 
-  @spec rpc(pid(), node(), (-> term()), timeout()) :: term()
+  @spec rpc(pid(), node(), (... -> term()), timeout()) :: term()
   def rpc(pid, node, fun, timeout),
     do: :peer.call(fetch_peer_pid!(pid, node), :erlang, :apply, [fun, []], timeout)
 

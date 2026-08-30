@@ -12,8 +12,7 @@
         inherit (nixpkgs.lib) optional;
         pkgs = import nixpkgs { inherit system; };
 
-	elixir = pkgs.beam.packages.erlangR25.elixir_1_14;
-        elixir-ls = pkgs.beam.packages.erlang.elixir_ls;
+	elixir = pkgs.elixir;
         locales = pkgs.glibcLocales;
       in
       {
@@ -21,8 +20,7 @@
           {
               buildInputs = [
 		elixir
-		locales
-            ];
+            ] ++ optional pkgs.stdenv.isLinux locales;
           };
       }
     );
