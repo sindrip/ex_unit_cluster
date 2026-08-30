@@ -21,6 +21,12 @@ defmodule ExUnitCluster do
   @spec call(pid(), node(), module(), atom(), list(term()), timeout()) :: term()
   defdelegate call(pid, node, module, function, args, timeout \\ 5_000), to: Manager
 
+  @doc """
+  Run an anonymous function on a specific node.
+
+  Variables the function captures travel with it, and remote failures —
+  including failing assertions — raise in the calling process.
+  """
   @spec rpc(cluster :: pid(), node :: node(), fun :: (... -> term()), timeout :: timeout()) ::
           term()
   defdelegate rpc(pid, node, fun, timeout \\ 5_000), to: Manager

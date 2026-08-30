@@ -18,7 +18,9 @@ module which was introduced in OTP 25 and is first supported in elixir version 1
 ## Examples
 
 The most straightforward way to start using `ExUnitCluster` for a distributed test,
-is to start `ExUnitCluster.Manager` inside the test.
+is to start `ExUnitCluster.Manager` inside the test. Code runs on a node through
+`ExUnitCluster.rpc/4`: the anonymous function executes on that node, and any
+variables it captures travel with it.
 
 ```elixir
 defmodule SimpleTest do
@@ -30,8 +32,8 @@ defmodule SimpleTest do
     # 2) Start a node linked to the given manager
     node = ExUnitCluster.start_node(cluster)
 
-    # 3) Make an RPC to the node
-    node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
+    # 3) Run code on the node
+    node_name = ExUnitCluster.rpc(cluster, node, fn -> Node.self() end)
     refute Node.self() == node_name
   end
 end
@@ -54,8 +56,8 @@ defmodule ClusterTest do
     # 2) Start a node in this test
     node = ExUnitCluster.start_node(cluster)
 
-    # 3) Make an RPC to the node
-    node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
+    # 3) Run code on the node
+    node_name = ExUnitCluster.rpc(cluster, node, fn -> Node.self() end)
     refute Node.self() == node_name
   end
 end
@@ -69,29 +71,18 @@ defmodule ReadmeClusterTest do
 
   test "start node in test", %{cluster: cluster} do
     node = ExUnitCluster.start_node(cluster)
-
-    node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
-    refute Node.self() == node_name
-  end
-end
-```
-
-Anonymous functions can be executed on a node with `ExUnitCluster.rpc/4`.
-Variables captured by the function travel with it, and remote failures
-(including failing assertions) raise directly in the test process.
-
-```elixir
-defmodule RpcExampleTest do
-  use ExUnitCluster.Case, async: true
-
-  test "run a function on a node", %{cluster: cluster} do
-    node = ExUnitCluster.start_node(cluster)
     greeting = "hello"
 
     assert {node, "hello"} == ExUnitCluster.rpc(cluster, node, fn -> {Node.self(), greeting} end)
   end
 end
 ```
+
+Remote failures — including failing assertions — raise directly in the test
+process. The MFA form is still available as `ExUnitCluster.call/6`, and the
+`in_cluster` macro wraps `rpc/4` in block syntax. Modules using
+`ExUnitCluster.Case` additionally ship their compiled bytecode to each peer,
+so nodes boot without recompiling the test file.
 
 <!-- README END -->
 
