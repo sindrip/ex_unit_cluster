@@ -12,6 +12,8 @@ defmodule ExUnitCluster.Case do
     quote bind_quoted: [use_case_cluster: use_case_cluster, file: file] do
       import ExUnitCluster
 
+      @after_compile ExUnitCluster.Case
+
       if use_case_cluster do
         setup_all ctx do
           test_file = unquote(file)
@@ -34,5 +36,10 @@ defmodule ExUnitCluster.Case do
         end
       end
     end
+  end
+
+  @doc false
+  def __after_compile__(env, bytecode) do
+    :persistent_term.put({ExUnitCluster, env.module}, bytecode)
   end
 end

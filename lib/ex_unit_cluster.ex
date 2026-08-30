@@ -25,66 +25,24 @@ defmodule ExUnitCluster do
   defdelegate rpc(pid, node, fun, timeout \\ 5_000), to: Manager
 
   @doc """
-  Execute multiline code blocks on a specific node
+  Execute multiline code blocks on a specific node.
+
+  The block runs as an anonymous function, so variables from the
+  caller scope are available inside it.
   """
   defmacro in_cluster(cluster, node, do: expressions) do
-    # The host and each peer compile this file separately, and every
-    # compilation must derive the same module name for this block.
-    module_name = block_module(__CALLER__, "InCluster")
-
-    if :code.module_status(module_name) == :not_loaded do
-      quoted =
-        quote do
-          import ExUnit.Assertions
-
-          def run do
-            unquote(expressions)
-          end
-        end
-
-      Module.create(module_name, quoted, Macro.Env.location(__CALLER__))
-    end
-
     quote do
-      ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [])
+      ExUnitCluster.rpc(unquote(cluster), unquote(node), fn -> unquote(expressions) end)
     end
   end
 
   @doc """
-  Execute multiline code blocks on a specific node,
-  capturing variables from the caller scope.
+  Same as `in_cluster/3`, which now also captures variables from the
+  caller scope. Kept for compatibility.
   """
   defmacro in_cluster_env(cluster, node, do: expressions) do
-    module_name = block_module(__CALLER__, "InClusterEnv")
-
-    env =
-      __CALLER__
-      |> Macro.Env.vars()
-      |> Keyword.keys()
-      |> Enum.map(&Macro.var(&1, nil))
-
-    if :code.module_status(module_name) == :not_loaded do
-      quoted =
-        quote do
-          import ExUnit.Assertions
-
-          def run(unquote(env)) do
-            _ = unquote(env)
-            unquote(expressions)
-          end
-        end
-
-      Module.create(module_name, quoted, Macro.Env.location(__CALLER__))
-    end
-
     quote do
-      ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [
-        unquote(env)
-      ])
+      ExUnitCluster.rpc(unquote(cluster), unquote(node), fn -> unquote(expressions) end)
     end
-  end
-
-  defp block_module(%Macro.Env{module: module, line: line}, flavor) do
-    Module.concat(module, "#{flavor}_#{line}")
   end
 end

@@ -76,6 +76,23 @@ defmodule ReadmeClusterTest do
 end
 ```
 
+Anonymous functions can be executed on a node with `ExUnitCluster.rpc/4`.
+Variables captured by the function travel with it, and remote failures
+(including failing assertions) raise directly in the test process.
+
+```elixir
+defmodule RpcExampleTest do
+  use ExUnitCluster.Case, async: true
+
+  test "run a function on a node", %{cluster: cluster} do
+    node = ExUnitCluster.start_node(cluster)
+    greeting = "hello"
+
+    assert {node, "hello"} == ExUnitCluster.rpc(cluster, node, fn -> {Node.self(), greeting} end)
+  end
+end
+```
+
 <!-- README END -->
 
 ## Installation

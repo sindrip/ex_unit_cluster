@@ -12,7 +12,7 @@ defmodule ExUnitCluster.Manager do
     defstruct @enforce_keys
   end
 
-  @enforce_keys [:prefix, :nodes, :cookie, :test_file]
+  @enforce_keys [:prefix, :nodes, :cookie, :test_file, :test_module, :bytecode]
   defstruct @enforce_keys
 
   def start_link(opts) do
@@ -62,7 +62,9 @@ defmodule ExUnitCluster.Manager do
       prefix: prefix,
       nodes: Map.new(),
       cookie: cookie,
-      test_file: test_file
+      test_file: test_file,
+      test_module: test_module,
+      bytecode: :persistent_term.get({ExUnitCluster, test_module}, nil)
     }
 
     {:ok, state}
@@ -101,28 +103,8 @@ defmodule ExUnitCluster.Manager do
     end
 
     peer_call(pid, :code, :add_paths, [:code.get_path()])
-
-    for {app, _, _} <- Application.loaded_applications() do
-      base_env = Application.get_all_env(app)
-
-      environment =
-        opts
-        |> Keyword.get(:environment, [])
-        |> Keyword.get(app, [])
-        |> Keyword.merge(base_env, fn _, v, _ -> v end)
-
-      for {key, val} <- environment do
-        peer_call(pid, Application, :put_env, [app, key, val])
-      end
-    end
-
-    peer_call(pid, Application, :ensure_all_started, [:mix])
-    peer_call(pid, Mix, :env, [Mix.env()])
-
-    # We need to start :ex_unit to be able to compile the test file
-    # It would be nice to avoid doing this compilation on every node started
-    peer_call(pid, Application, :ensure_all_started, [:ex_unit])
-    peer_call(pid, Code, :compile_file, [state.test_file])
+    copy_application_env(pid, opts)
+    load_test_code(pid, state)
 
     if applications do
       for app <- applications do
@@ -158,6 +140,34 @@ defmodule ExUnitCluster.Manager do
       nil -> {:reply, {:error, :not_found}, state}
       %NodeInfo{pid: pid} -> {:reply, {:ok, pid}, state}
     end
+  end
+
+  defp copy_application_env(pid, opts) do
+    overrides = Keyword.get(opts, :environment, [])
+
+    config =
+      for {app, _, _} <- Application.loaded_applications() do
+        env = Keyword.merge(Application.get_all_env(app), Keyword.get(overrides, app, []))
+        {app, env}
+      end
+
+    peer_call(pid, Application, :put_all_env, [config])
+  end
+
+  # The case template captures the test module's bytecode after
+  # compilation, so the peer loads the host's exact beam and closures
+  # are guaranteed to apply. Without it the peer compiles the test file
+  # itself, which needs :ex_unit running for the compile-time hooks in
+  # `use ExUnit.Case`.
+  defp load_test_code(pid, %__MODULE__{bytecode: nil} = state) do
+    peer_call(pid, Application, :ensure_all_started, [:mix])
+    peer_call(pid, Mix, :env, [Mix.env()])
+    peer_call(pid, Application, :ensure_all_started, [:ex_unit])
+    peer_call(pid, Code, :compile_file, [state.test_file])
+  end
+
+  defp load_test_code(pid, %__MODULE__{} = state) do
+    peer_call(pid, :code, :load_binary, [state.test_module, ~c"ex_unit_cluster", state.bytecode])
   end
 
   # Top level API calls determine the timeout
