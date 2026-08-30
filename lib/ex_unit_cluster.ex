@@ -21,6 +21,9 @@ defmodule ExUnitCluster do
   @spec call(pid(), node(), module(), atom(), list(term()), timeout()) :: term()
   defdelegate call(pid, node, module, function, args, timeout \\ 5_000), to: Manager
 
+  @spec rpc(cluster :: pid(), node :: node(), fun :: (-> term()), timeout :: timeout()) :: term()
+  defdelegate rpc(pid, node, fun, timeout \\ 5_000), to: Manager
+
   @doc """
   Execute multiline code blocks on a specific node
   """
