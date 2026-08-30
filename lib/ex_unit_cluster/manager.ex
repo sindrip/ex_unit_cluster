@@ -121,7 +121,7 @@ defmodule ExUnitCluster.Manager do
   end
 
   @impl true
-  def handle_call({:stop_node, node}, _from, state) do
+  def handle_call({:stop_node, node}, _from, %__MODULE__{} = state) do
     case Map.get(state.nodes, node) do
       nil ->
         {:reply, {:error, :not_found}, state}
