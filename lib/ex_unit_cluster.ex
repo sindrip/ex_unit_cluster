@@ -27,6 +27,9 @@ defmodule ExUnitCluster do
   Variables the function captures travel with it, and remote failures —
   including failing assertions — raise in the calling process.
   """
+  # The precise fun type is arity zero, but neither spelling of it
+  # survives mix format on both sides of Elixir 1.15: old formatters
+  # rewrite (-> term()) and new ones rewrite (() -> term()).
   @spec rpc(cluster :: pid(), node :: node(), fun :: (... -> term()), timeout :: timeout()) ::
           term()
   defdelegate rpc(pid, node, fun, timeout \\ 5_000), to: Manager
