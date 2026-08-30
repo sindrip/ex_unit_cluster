@@ -18,9 +18,11 @@ module which was introduced in OTP 25 and is first supported in elixir version 1
 ## Examples
 
 The most straightforward way to start using `ExUnitCluster` for a distributed test,
-is to start `ExUnitCluster.Manager` inside the test. Code runs on a node through
-`ExUnitCluster.rpc/4`: the anonymous function executes on that node, and any
-variables it captures travel with it.
+is to start `ExUnitCluster.Manager` inside the test. `start_node/3` returns an
+`ExUnitCluster.Peer` handle carrying everything node-level operations need, so
+only cluster-level operations (`start_node/3`, `peers/1`) take the cluster. Code
+runs on a node through `ExUnitCluster.rpc/3`: the anonymous function executes on
+that node, and any variables it captures travel with it.
 
 ```elixir
 defmodule SimpleTest do
@@ -30,10 +32,10 @@ defmodule SimpleTest do
     # 1) Start the cluster manager under the test supervisor
     cluster = start_supervised!({ExUnitCluster.Manager, ctx})
     # 2) Start a node linked to the given manager
-    node = ExUnitCluster.start_node(cluster)
+    peer = ExUnitCluster.start_node(cluster)
 
     # 3) Run code on the node
-    node_name = ExUnitCluster.rpc(cluster, node, fn -> Node.self() end)
+    node_name = ExUnitCluster.rpc(peer, fn -> Node.self() end)
     refute Node.self() == node_name
   end
 end
@@ -54,10 +56,10 @@ defmodule ClusterTest do
 
   test "start node in test", %{cluster: cluster} do
     # 2) Start a node in this test
-    node = ExUnitCluster.start_node(cluster)
+    peer = ExUnitCluster.start_node(cluster)
 
     # 3) Run code on the node
-    node_name = ExUnitCluster.rpc(cluster, node, fn -> Node.self() end)
+    node_name = ExUnitCluster.rpc(peer, fn -> Node.self() end)
     refute Node.self() == node_name
   end
 end
@@ -70,17 +72,17 @@ defmodule ReadmeClusterTest do
   use ExUnitCluster.Case, async: true
 
   test "start node in test", %{cluster: cluster} do
-    node = ExUnitCluster.start_node(cluster)
+    peer = ExUnitCluster.start_node(cluster)
     greeting = "hello"
 
-    assert {node, "hello"} == ExUnitCluster.rpc(cluster, node, fn -> {Node.self(), greeting} end)
+    assert {peer.name, "hello"} == ExUnitCluster.rpc(peer, fn -> {Node.self(), greeting} end)
   end
 end
 ```
 
 Remote failures — including failing assertions — raise directly in the test
-process. The MFA form is still available as `ExUnitCluster.call/6`, and the
-`in_cluster` macro wraps `rpc/4` in block syntax. Modules using
+process. The MFA form is still available as `ExUnitCluster.call/5`, and the
+`in_cluster` macro wraps `rpc/3` in block syntax. Modules using
 `ExUnitCluster.Case` additionally ship their compiled bytecode to each peer,
 so nodes boot without recompiling the test file.
 

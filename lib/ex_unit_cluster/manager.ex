@@ -5,62 +5,44 @@ defmodule ExUnitCluster.Manager do
 
   use GenServer
 
-  defmodule NodeInfo do
-    @moduledoc false
+  alias ExUnitCluster.Peer
 
-    @enforce_keys [:pid, :join]
-    defstruct @enforce_keys
-  end
-
-  @enforce_keys [:prefix, :nodes, :cookie, :test_file, :test_module, :bytecode]
+  @enforce_keys [:prefix, :peers, :cookie, :test_file, :test_module, :bytecode]
   defstruct @enforce_keys
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @spec start_node(pid(), keyword(), timeout()) :: node()
+  @spec start_node(pid(), keyword(), timeout()) :: Peer.t()
   def start_node(pid, opts, timeout), do: GenServer.call(pid, {:start_node, opts}, timeout)
 
-  @spec stop_node(pid(), node(), timeout()) :: :ok | {:error, :not_found}
-  def stop_node(pid, node, timeout), do: GenServer.call(pid, {:stop_node, node}, timeout)
+  @spec stop_node(Peer.t(), timeout()) :: :ok | {:error, :not_found}
+  def stop_node(%Peer{cluster: cluster, name: name}, timeout),
+    do: GenServer.call(cluster, {:stop_node, name}, timeout)
 
-  @spec get_nodes(pid()) :: list(node())
-  def get_nodes(pid), do: GenServer.call(pid, :get_nodes)
-
-  @spec call(pid(), node(), module(), atom(), list(term()), timeout()) :: term()
-  def call(pid, node, module, function, args, timeout),
-    do: :peer.call(fetch_peer_pid!(pid, node, timeout), module, function, args, timeout)
-
-  @spec rpc(pid(), node(), (... -> term()), timeout()) :: term()
-  def rpc(pid, node, fun, timeout),
-    do: :peer.call(fetch_peer_pid!(pid, node, timeout), :erlang, :apply, [fun, []], timeout)
-
-  # Calls run in the caller's process so that calls to different nodes
-  # can overlap and remote errors raise where the test can see them.
-  defp fetch_peer_pid!(pid, node, timeout) do
-    case GenServer.call(pid, {:get_peer_pid, node}, timeout) do
-      {:ok, peer} -> peer
-      {:error, :not_found} -> raise ArgumentError, "unknown node #{inspect(node)}"
-    end
-  end
+  @spec peers(pid()) :: list(Peer.t())
+  def peers(pid), do: GenServer.call(pid, :peers)
 
   @impl true
   def init(opts) do
     test_module = opts[:module]
-    test_name = opts[:name]
     test_file = opts[:file]
 
+    # Node names allow a narrow charset, and atoms cap at 255 bytes.
     prefix =
-      "#{Atom.to_string(test_module)} #{Atom.to_string(test_name)}"
-      |> String.replace([".", " "], "_")
+      [test_module, opts[:test]]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map_join(" ", &Atom.to_string/1)
+      |> String.replace(~r/[^0-9A-Za-z_-]/, "_")
+      |> String.slice(0, 100)
       |> String.to_atom()
 
     cookie = Base.url_encode64(:rand.bytes(40))
 
     state = %__MODULE__{
       prefix: prefix,
-      nodes: Map.new(),
+      peers: [],
       cookie: cookie,
       test_file: test_file,
       test_module: test_module,
@@ -71,9 +53,8 @@ defmodule ExUnitCluster.Manager do
   end
 
   @impl true
-  def handle_call(:get_nodes, _from, state) do
-    nodes = Map.keys(state.nodes)
-    {:reply, nodes, state}
+  def handle_call(:peers, _from, state) do
+    {:reply, state.peers, state}
   end
 
   @impl true
@@ -95,8 +76,8 @@ defmodule ExUnitCluster.Manager do
       })
 
     if join do
-      for %NodeInfo{join: true, pid: node_pid} <- Map.values(state.nodes) do
-        peer_call(node_pid, Node, :connect, [node])
+      for %Peer{join: true, pid: peer_pid} <- state.peers do
+        peer_call(peer_pid, Node, :connect, [node])
       end
     end
 
@@ -113,30 +94,22 @@ defmodule ExUnitCluster.Manager do
       peer_call(pid, Application, :ensure_all_started, [app])
     end
 
-    node_info = %NodeInfo{pid: pid, join: join}
+    peer = %Peer{name: node, pid: pid, cluster: self(), join: join}
 
-    state = %__MODULE__{state | nodes: Map.put(state.nodes, node, node_info)}
+    state = %__MODULE__{state | peers: state.peers ++ [peer]}
 
-    {:reply, node, state}
+    {:reply, peer, state}
   end
 
   @impl true
-  def handle_call({:stop_node, node}, _from, %__MODULE__{} = state) do
-    case Map.get(state.nodes, node) do
-      nil ->
+  def handle_call({:stop_node, name}, _from, %__MODULE__{} = state) do
+    case Enum.split_with(state.peers, &(&1.name == name)) do
+      {[peer], rest} ->
+        :peer.stop(peer.pid)
+        {:reply, :ok, %__MODULE__{state | peers: rest}}
+
+      {[], _} ->
         {:reply, {:error, :not_found}, state}
-
-      %NodeInfo{pid: pid} ->
-        :peer.stop(pid)
-        state = %__MODULE__{state | nodes: Map.delete(state.nodes, node)}
-        {:reply, :ok, state}
-    end
-  end
-
-  def handle_call({:get_peer_pid, node}, _from, state) do
-    case Map.get(state.nodes, node) do
-      nil -> {:reply, {:error, :not_found}, state}
-      %NodeInfo{pid: pid} -> {:reply, {:ok, pid}, state}
     end
   end
 

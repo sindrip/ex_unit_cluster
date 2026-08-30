@@ -25,28 +25,28 @@ defmodule StartNodeEnvOverrideTest do
     setup [:start_nodes]
 
     test "application env is overriden for node using option", ctx do
-      %{cluster: cluster, node1: node1} = ctx
+      %{peer1: peer1} = ctx
 
-      node1_env = ExUnitCluster.call(cluster, node1, Application, :get_all_env, [@app])
+      peer1_env = ExUnitCluster.call(peer1, Application, :get_all_env, [@app])
 
-      assert 777 == Keyword.get(node1_env, :key_a)
-      assert @key_b_original == Keyword.get(node1_env, :key_b)
+      assert 777 == Keyword.get(peer1_env, :key_a)
+      assert @key_b_original == Keyword.get(peer1_env, :key_b)
     end
 
     test "application env is unchanged for nodes not using option", ctx do
-      %{cluster: cluster, node2: node2} = ctx
+      %{peer2: peer2} = ctx
 
-      node2_env = ExUnitCluster.call(cluster, node2, Application, :get_all_env, [@app])
+      peer2_env = ExUnitCluster.call(peer2, Application, :get_all_env, [@app])
 
-      assert @key_a_original == Keyword.get(node2_env, :key_a)
-      assert @key_b_original == Keyword.get(node2_env, :key_b)
+      assert @key_a_original == Keyword.get(peer2_env, :key_a)
+      assert @key_b_original == Keyword.get(peer2_env, :key_b)
     end
   end
 
   defp start_nodes(%{cluster: cluster}) do
-    node1 = ExUnitCluster.start_node(cluster, environment: [{@app, [key_a: 777]}])
-    node2 = ExUnitCluster.start_node(cluster)
+    peer1 = ExUnitCluster.start_node(cluster, environment: [{@app, [key_a: 777]}])
+    peer2 = ExUnitCluster.start_node(cluster)
 
-    [node1: node1, node2: node2]
+    [peer1: peer1, peer2: peer2]
   end
 end
