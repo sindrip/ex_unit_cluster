@@ -95,10 +95,8 @@ defmodule ExUnitCluster.Manager do
       })
 
     if join do
-      for %NodeInfo{join: node_join, pid: node_pid} <- Map.values(state.nodes) do
-        if node_join do
-          peer_call(node_pid, Node, :connect, [node])
-        end
+      for %NodeInfo{join: true, pid: node_pid} <- Map.values(state.nodes) do
+        peer_call(node_pid, Node, :connect, [node])
       end
     end
 
