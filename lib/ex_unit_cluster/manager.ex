@@ -35,13 +35,13 @@ defmodule ExUnitCluster.Manager do
   @impl true
   def init(opts) do
     test_module = opts[:module]
-    test_name = opts[:name]
     test_file = opts[:file]
 
     prefix =
-      "#{Atom.to_string(test_module)} #{Atom.to_string(test_name)}"
-      |> String.replace([".", " "], "_")
-      |> String.to_atom()
+      test_module
+      |> Module.split()
+      |> List.last()
+      |> String.to_charlist()
 
     cookie = Base.url_encode64(:rand.bytes(40))
 
@@ -63,7 +63,7 @@ defmodule ExUnitCluster.Manager do
 
   @impl true
   def handle_call({:start_node, opts}, _from, %__MODULE__{} = state) do
-    name = :peer.random_name(:"#{state.prefix}")
+    name = :peer.random_name(state.prefix)
     applications = opts[:applications]
     join = Keyword.get(opts, :join, true)
 
