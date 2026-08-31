@@ -6,80 +6,52 @@ defmodule ExUnitCluster do
              |> String.split("<!-- README END -->")
              |> List.first()
 
-  alias ExUnitCluster.Manager
+  alias ExUnitCluster.Peer
 
-  @spec start_node(cluster :: pid(), opts :: keyword(), timeout :: timeout()) :: node()
-  defdelegate start_node(pid, opts \\ [], timeout \\ 60_000), to: Manager
+  @spec start_peer(cluster :: pid(), opts :: keyword(), timeout :: timeout()) :: Peer.t()
+  def start_peer(cluster, opts \\ [], timeout \\ 60_000),
+    do: GenServer.call(cluster, {:start_peer, opts}, timeout)
 
-  @spec stop_node(cluster :: pid(), node :: node(), timeout :: timeout()) ::
-          :ok | {:error, :not_found}
-  defdelegate stop_node(pid, node, timeout \\ 5_000), to: Manager
+  @spec stop_peer(peer :: Peer.t(), timeout :: timeout()) :: :ok | {:error, :not_found}
+  def stop_peer(%Peer{} = peer, timeout \\ 5_000),
+    do: GenServer.call(peer.cluster, {:stop_peer, peer}, timeout)
 
-  @spec get_nodes(pid :: pid()) :: list(node())
-  defdelegate get_nodes(pid), to: Manager
+  @spec peers(cluster :: pid()) :: [Peer.t()]
+  def peers(cluster), do: GenServer.call(cluster, :peers)
 
-  @spec call(pid(), node(), module(), atom(), list(term()), timeout()) :: term()
-  defdelegate call(pid, node, module, function, args, timeout \\ 5_000), to: Manager
+  @spec call(peer :: Peer.t(), module(), atom(), list(term()), timeout()) :: term()
+  def call(%Peer{pid: pid}, module, function, args, timeout \\ 5_000),
+    do: :peer.call(pid, module, function, args, timeout)
 
   @doc """
-  Execute multiline code blocks on a specific node
+  Execute multiline code blocks on a specific node.
+
+  The block runs as an anonymous function, so variables from the
+  caller scope are available inside it.
   """
-  defmacro in_cluster(cluster, node, do: expressions) do
-    # We need a consistent random name, as this is compiled
-    # on each node separately at the moment.
-    module_name = :"#{:erlang.phash2(expressions)}"
-
-    if :code.module_status(module_name) == :not_loaded do
-      quoted =
-        quote do
-          import ExUnit.Assertions
-
-          def run do
-            unquote(expressions)
-          end
-        end
-
-      Module.create(module_name, quoted, Macro.Env.location(__ENV__))
-    end
+  defmacro in_cluster(peer, do: expressions) do
+    __register_bytecode_capture__(__CALLER__.module)
 
     quote do
-      ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [])
+      ExUnitCluster.call(unquote(peer), :erlang, :apply, [fn -> unquote(expressions) end, []])
     end
   end
 
-  @doc """
-  Execute multiline code blocks on a specific node,
-  capturing variables from the caller scope.
-  """
-  defmacro in_cluster_env(cluster, node, do: expressions) do
-    # We need a consistent random name, as this is compiled
-    # on each node separately at the moment.
-    module_name = :"#{:erlang.phash2(expressions)}"
+  @doc false
+  def __register_bytecode_capture__(nil), do: :ok
 
-    env =
-      __CALLER__
-      |> Macro.Env.vars()
-      |> Keyword.keys()
-      |> Enum.map(&Macro.var(&1, nil))
-
-    if :code.module_status(module_name) == :not_loaded do
-      quoted =
-        quote do
-          import ExUnit.Assertions
-
-          def run(unquote(env)) do
-            _ = unquote(env)
-            unquote(expressions)
-          end
-        end
-
-      Module.create(module_name, quoted, Macro.Env.location(__ENV__))
+  def __register_bytecode_capture__(module) do
+    unless Module.get_attribute(module, :ex_unit_cluster_capture?) do
+      Module.put_attribute(module, :ex_unit_cluster_capture?, true)
+      Module.put_attribute(module, :after_compile, {ExUnitCluster, :__capture_bytecode__})
+      :persistent_term.put({ExUnitCluster, :expects, module}, true)
     end
 
-    quote do
-      ExUnitCluster.call(unquote(cluster), unquote(node), unquote(module_name), :run, [
-        unquote(env)
-      ])
-    end
+    :ok
+  end
+
+  @doc false
+  def __capture_bytecode__(env, bytecode) do
+    :persistent_term.put({ExUnitCluster, env.module}, bytecode)
   end
 end

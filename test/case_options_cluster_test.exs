@@ -1,19 +1,19 @@
 defmodule CaseOptionsClusterTest do
-  @cluster_nodes 3
+  @peer_count 3
 
-  use ExUnitCluster.Case, async: true, cluster_nodes: @cluster_nodes
+  use ExUnitCluster.Case, async: true, peers: @peer_count
 
   test "cluster is spawned with expected number of nodes", %{cluster: cluster} do
-    expected_nodes = ExUnitCluster.get_nodes(cluster)
-    assert length(expected_nodes) == @cluster_nodes
+    peers = ExUnitCluster.peers(cluster)
+    assert length(peers) == @peer_count
 
     nodes =
-      Enum.map(expected_nodes, fn n ->
-        in_cluster cluster, n do
+      Enum.map(peers, fn p ->
+        in_cluster p do
           Node.self()
         end
       end)
 
-    assert nodes == expected_nodes
+    assert nodes == Enum.map(peers, & &1.name)
   end
 end

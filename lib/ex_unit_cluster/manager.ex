@@ -1,48 +1,26 @@
 defmodule ExUnitCluster.Manager do
   @moduledoc """
-  Documentation for `ExUnitCluster.Manager`
+  Starts, tracks, and owns the lifecycle of one cluster's peers.
+
+  Holds no public API of its own — `ExUnitCluster` talks to it. Its pid is
+  the cluster handle, and every `ExUnitCluster.Peer` carries it as
+  `peer.cluster`.
   """
 
   use GenServer
 
-  defmodule NodeInfo do
-    @moduledoc false
+  alias ExUnitCluster.Peer
 
-    @enforce_keys [:pid, :join]
-    defstruct @enforce_keys
-  end
-
-  @enforce_keys [:prefix, :nodes, :cookie, :test_file]
+  @enforce_keys [:prefix, :peers, :cookie, :test_module, :bytecode]
   defstruct @enforce_keys
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @spec start_node(pid(), keyword(), timeout()) :: node()
-  def start_node(pid, opts, timeout), do: GenServer.call(pid, {:start_node, opts}, timeout)
-
-  @spec stop_node(pid(), node(), timeout()) :: :ok | {:error, :not_found}
-  def stop_node(pid, node, timeout), do: GenServer.call(pid, {:stop_node, node}, timeout)
-
-  @spec get_nodes(pid()) :: list(node())
-  def get_nodes(pid), do: GenServer.call(pid, :get_nodes)
-
-  @spec call(pid(), node(), module(), atom(), list(term()), timeout()) :: term()
-  def call(pid, node, module, function, args, timeout),
-    do: :peer.call(fetch_peer_pid!(pid, node, timeout), module, function, args, timeout)
-
-  defp fetch_peer_pid!(pid, node, timeout) do
-    case GenServer.call(pid, {:get_peer_pid, node}, timeout) do
-      {:ok, peer} -> peer
-      {:error, :not_found} -> raise ArgumentError, "unknown node #{inspect(node)}"
-    end
-  end
-
-  @impl true
+  @impl GenServer
   def init(opts) do
     test_module = opts[:module]
-    test_file = opts[:file]
 
     prefix =
       test_module
@@ -52,27 +30,29 @@ defmodule ExUnitCluster.Manager do
 
     cookie = Base.url_encode64(:rand.bytes(40))
 
+    bytecode = bytecode_for(test_module)
+
     state = %__MODULE__{
       prefix: prefix,
-      nodes: Map.new(),
+      peers: [],
       cookie: cookie,
-      test_file: test_file
+      test_module: test_module,
+      bytecode: bytecode
     }
 
     {:ok, state}
   end
 
-  @impl true
-  def handle_call(:get_nodes, _from, state) do
-    nodes = Map.keys(state.nodes)
-    {:reply, nodes, state}
+  @impl GenServer
+  def handle_call(:peers, _from, %__MODULE__{} = state) do
+    {:reply, Enum.reverse(state.peers), state}
   end
 
-  @impl true
-  def handle_call({:start_node, opts}, _from, %__MODULE__{} = state) do
+  @impl GenServer
+  def handle_call({:start_peer, opts}, _from, %__MODULE__{} = state) do
     name = :peer.random_name(state.prefix)
     applications = opts[:applications]
-    join = Keyword.get(opts, :join, true)
+    join = !!Keyword.get(opts, :join, true)
 
     {:ok, pid, node} =
       :peer.start_link(%{
@@ -87,9 +67,8 @@ defmodule ExUnitCluster.Manager do
       })
 
     if join do
-      for %NodeInfo{join: node_join, pid: node_pid} <- Map.values(state.nodes),
-          node_join do
-        peer_call(node_pid, Node, :connect, [node])
+      for %Peer{join: true, pid: peer_pid} <- state.peers do
+        peer_call(peer_pid, Node, :connect, [node])
       end
     end
 
@@ -104,13 +83,9 @@ defmodule ExUnitCluster.Manager do
 
     peer_call(pid, Application, :put_all_env, [env])
 
-    peer_call(pid, Application, :ensure_all_started, [:mix])
-    peer_call(pid, Mix, :env, [Mix.env()])
-
-    # We need to start :ex_unit to be able to compile the test file
-    # It would be nice to avoid doing this compilation on every node started
-    peer_call(pid, Application, :ensure_all_started, [:ex_unit])
-    peer_call(pid, Code, :compile_file, [state.test_file])
+    if state.bytecode do
+      peer_call(pid, :code, :load_binary, [state.test_module, ~c"ex_unit_cluster", state.bytecode])
+    end
 
     if applications do
       for app <- applications do
@@ -121,30 +96,38 @@ defmodule ExUnitCluster.Manager do
       peer_call(pid, Application, :ensure_all_started, [app])
     end
 
-    node_info = %NodeInfo{pid: pid, join: join}
+    peer = %Peer{name: node, pid: pid, cluster: self(), join: join}
 
-    state = %__MODULE__{state | nodes: Map.put(state.nodes, node, node_info)}
-
-    {:reply, node, state}
+    {:reply, peer, %__MODULE__{state | peers: [peer | state.peers]}}
   end
 
-  @impl true
-  def handle_call({:stop_node, node}, _from, %__MODULE__{} = state) do
-    case Map.get(state.nodes, node) do
-      nil ->
-        {:reply, {:error, :not_found}, state}
-
-      %NodeInfo{pid: pid} ->
-        :peer.stop(pid)
-        state = %__MODULE__{state | nodes: Map.delete(state.nodes, node)}
-        {:reply, :ok, state}
+  @impl GenServer
+  def handle_call({:stop_peer, %Peer{} = peer}, _from, %__MODULE__{} = state) do
+    if Enum.any?(state.peers, &(&1.pid == peer.pid)) do
+      :peer.stop(peer.pid)
+      {:reply, :ok, %__MODULE__{state | peers: Enum.reject(state.peers, &(&1.pid == peer.pid))}}
+    else
+      {:reply, {:error, :not_found}, state}
     end
   end
 
-  def handle_call({:get_peer_pid, node}, _from, %__MODULE__{} = state) do
-    case Map.get(state.nodes, node) do
-      nil -> {:reply, {:error, :not_found}, state}
-      %NodeInfo{pid: pid} -> {:reply, {:ok, pid}, state}
+  defp bytecode_for(module) do
+    if :persistent_term.get({ExUnitCluster, :expects, module}, false) do
+      await_bytecode(module, 200)
+    end
+  end
+
+  defp await_bytecode(module, retries) do
+    case :persistent_term.get({ExUnitCluster, module}, nil) do
+      nil when retries > 0 ->
+        Process.sleep(5)
+        await_bytecode(module, retries - 1)
+
+      nil ->
+        raise "bytecode for #{inspect(module)} was never captured"
+
+      bytecode ->
+        bytecode
     end
   end
 

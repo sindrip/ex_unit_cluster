@@ -6,23 +6,20 @@ defmodule ExUnitCluster.Case do
   use ExUnit.CaseTemplate
 
   using options do
-    %{file: file} = __CALLER__
-    use_case_cluster = options[:cluster_nodes]
+    peer_count = options[:peers]
+    ExUnitCluster.__register_bytecode_capture__(__CALLER__.module)
 
-    quote bind_quoted: [use_case_cluster: use_case_cluster, file: file] do
+    quote bind_quoted: [peer_count: peer_count] do
       import ExUnitCluster
 
-      if use_case_cluster do
+      if peer_count do
         setup_all ctx do
-          test_file = unquote(file)
-          file_ctx = Map.merge(ctx, %{file: test_file})
+          cluster = start_supervised!({ExUnitCluster.Manager, ctx})
 
-          cluster = start_supervised!({ExUnitCluster.Manager, file_ctx})
+          peer_count = unquote(peer_count)
 
-          no_nodes = unquote(use_case_cluster)
-
-          for _ <- 1..no_nodes do
-            ExUnitCluster.start_node(cluster)
+          for _ <- 1..peer_count do
+            ExUnitCluster.start_peer(cluster)
           end
 
           [cluster: cluster]
