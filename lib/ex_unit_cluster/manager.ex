@@ -62,7 +62,7 @@ defmodule ExUnitCluster.Manager do
   end
 
   @impl true
-  def handle_call({:start_node, opts}, _from, state) do
+  def handle_call({:start_node, opts}, _from, %__MODULE__{} = state) do
     name = :peer.random_name(:"#{state.prefix}")
     applications = opts[:applications]
     join = Keyword.get(opts, :join, true)
@@ -80,10 +80,9 @@ defmodule ExUnitCluster.Manager do
       })
 
     if join do
-      for %NodeInfo{join: node_join, pid: node_pid} <- Map.values(state.nodes) do
-        if node_join do
-          peer_call(node_pid, Node, :connect, [node])
-        end
+      for %NodeInfo{join: node_join, pid: node_pid} <- Map.values(state.nodes),
+          node_join do
+        peer_call(node_pid, Node, :connect, [node])
       end
     end
 
@@ -128,7 +127,7 @@ defmodule ExUnitCluster.Manager do
   end
 
   @impl true
-  def handle_call({:stop_node, node}, _from, state) do
+  def handle_call({:stop_node, node}, _from, %__MODULE__{} = state) do
     case Map.get(state.nodes, node) do
       nil ->
         {:reply, {:error, :not_found}, state}
