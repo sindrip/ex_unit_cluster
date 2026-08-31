@@ -7,10 +7,9 @@ defmodule ExUnitCluster.MixProject do
     [
       app: :ex_unit_cluster,
       version: "0.7.0",
-      elixir: ">= 1.13.4",
+      elixir: ">= 1.15.0",
       deps: deps(),
       package: package(),
-      preferred_cli_env: %{docs: :docs, "hex.build": :docs, "hex.publish": :docs},
       name: "ExUnit.Cluster",
       docs: docs(),
       source_url: @source_url,
@@ -21,6 +20,10 @@ defmodule ExUnitCluster.MixProject do
     ]
   end
 
+  def cli do
+    [preferred_envs: %{docs: :docs, "hex.build": :docs, "hex.publish": :docs}]
+  end
+
   def application do
     [
       extra_applications: [:logger]
@@ -29,8 +32,8 @@ defmodule ExUnitCluster.MixProject do
 
   defp deps do
     [
-      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.2", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       {:ex_doc, ">= 0.0.0", only: :docs, runtime: false}
     ]
   end
