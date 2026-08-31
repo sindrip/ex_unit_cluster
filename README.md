@@ -28,10 +28,11 @@ defmodule SimpleTest do
     # 1) Start the cluster manager under the test supervisor
     cluster = start_supervised!({ExUnitCluster.Manager, ctx})
     # 2) Start a node linked to the given manager
-    node = ExUnitCluster.start_node(cluster)
+    peer = ExUnitCluster.start_peer(cluster)
 
     # 3) Make an RPC to the node
-    node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
+    node_name = ExUnitCluster.call(peer, Node, :self, [])
+    assert node_name == peer.name
     refute Node.self() == node_name
   end
 end
@@ -52,10 +53,10 @@ defmodule ClusterTest do
 
   test "start node in test", %{cluster: cluster} do
     # 2) Start a node in this test
-    node = ExUnitCluster.start_node(cluster)
+    peer = ExUnitCluster.start_peer(cluster)
 
     # 3) Make an RPC to the node
-    node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
+    node_name = ExUnitCluster.call(peer, Node, :self, [])
     refute Node.self() == node_name
   end
 end
@@ -68,9 +69,9 @@ defmodule ReadmeClusterTest do
   use ExUnitCluster.Case, async: true
 
   test "start node in test", %{cluster: cluster} do
-    node = ExUnitCluster.start_node(cluster)
+    peer = ExUnitCluster.start_peer(cluster)
 
-    node_name = ExUnitCluster.call(cluster, node, Node, :self, [])
+    node_name = ExUnitCluster.call(peer, Node, :self, [])
     refute Node.self() == node_name
   end
 end

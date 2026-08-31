@@ -2,31 +2,33 @@ defmodule CallTest do
   use ExUnitCluster.Case
 
   test "a remote raise surfaces in the caller", %{cluster: cluster} do
-    n1 = ExUnitCluster.start_node(cluster)
+    p1 = ExUnitCluster.start_peer(cluster)
 
     assert_raise KeyError, fn ->
-      ExUnitCluster.call(cluster, n1, Map, :fetch!, [%{}, :missing])
+      ExUnitCluster.call(p1, Map, :fetch!, [%{}, :missing])
     end
   end
 
-  test "an unknown node raises ArgumentError", %{cluster: cluster} do
-    assert_raise ArgumentError, ~r/unknown node/, fn ->
-      ExUnitCluster.call(cluster, :"nope@127.0.0.1", Kernel, :node, [])
-    end
+  test "a stale handle exits with noproc", %{cluster: cluster} do
+    p1 = ExUnitCluster.start_peer(cluster)
+    :ok = ExUnitCluster.stop_peer(p1)
+
+    assert {:noproc, _} = catch_exit(ExUnitCluster.call(p1, Kernel, :node, []))
+    assert {:error, :not_found} = ExUnitCluster.stop_peer(p1)
   end
 
   test "calls to different nodes do not serialise", %{cluster: cluster} do
-    n1 = ExUnitCluster.start_node(cluster)
-    n2 = ExUnitCluster.start_node(cluster)
+    p1 = ExUnitCluster.start_peer(cluster)
+    p2 = ExUnitCluster.start_peer(cluster)
 
     blocked =
       Task.async(fn ->
-        ExUnitCluster.call(cluster, n1, Process, :sleep, [3_000], 10_000)
+        ExUnitCluster.call(p1, Process, :sleep, [3_000], 10_000)
       end)
 
     Process.sleep(200)
 
-    assert ExUnitCluster.call(cluster, n2, Kernel, :node, [], 1_000) == n2
+    assert ExUnitCluster.call(p2, Kernel, :node, [], 1_000) == p2.name
 
     Task.shutdown(blocked, :brutal_kill)
   end
