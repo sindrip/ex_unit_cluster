@@ -24,6 +24,7 @@
           default = pkgs.mkShell {
             name = "ex_unit_cluster";
             packages = [
+              pkgs.git
               beam.elixir_1_20
               beam.expert
             ];
