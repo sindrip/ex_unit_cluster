@@ -1,29 +1,34 @@
 {
-  description = "Development environment";
+  description = "Development environment for ex_unit_cluster";
 
-  inputs = {
-      nixpkgs = { url = "github:NixOS/nixpkgs/nixpkgs-unstable"; };
-    flake-utils = { url = "github:numtide/flake-utils"; };
-  };
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        inherit (nixpkgs.lib) optional;
-        pkgs = import nixpkgs { inherit system; };
-
-	elixir = pkgs.beam.packages.erlangR25.elixir_1_14;
-        elixir-ls = pkgs.beam.packages.erlang.elixir_ls;
-        locales = pkgs.glibcLocales;
-      in
-      {
-          devShell = pkgs.mkShell
-          {
-              buildInputs = [
-		elixir
-		locales
+  outputs =
+    { nixpkgs, ... }:
+    let
+      forAllSystems = nixpkgs.lib.genAttrs [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "x86_64-linux"
+      ];
+    in
+    {
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          beam = pkgs.beam.packages.erlang_29;
+        in
+        {
+          default = pkgs.mkShell {
+            name = "ex_unit_cluster";
+            packages = [
+              beam.elixir_1_20
+              beam.expert
             ];
           };
-      }
-    );
+        }
+      );
+    };
 }
