@@ -9,7 +9,7 @@ jobs:
   check-tag-and-version:
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v5
       - name: Compare tag and package version
         run: |
           VERSION=$(awk -F\" '/version:/ {print "v" $2}' mix.exs)
@@ -28,11 +28,11 @@ jobs:
     needs: check-tag-and-version
     environment: 'hex'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: '25'
-          elixir-version: '1.14'
+          otp-version: '29'
+          elixir-version: '1.20'
       - name: Publish package to hex.pm
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
