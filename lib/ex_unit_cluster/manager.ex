@@ -30,7 +30,14 @@ defmodule ExUnitCluster.Manager do
 
   @spec call(pid(), node(), module(), atom(), list(term()), timeout()) :: term()
   def call(pid, node, module, function, args, timeout),
-    do: GenServer.call(pid, {:call, node, module, function, args}, timeout)
+    do: :peer.call(fetch_peer_pid!(pid, node, timeout), module, function, args, timeout)
+
+  defp fetch_peer_pid!(pid, node, timeout) do
+    case GenServer.call(pid, {:get_peer_pid, node}, timeout) do
+      {:ok, peer} -> peer
+      {:error, :not_found} -> raise ArgumentError, "unknown node #{inspect(node)}"
+    end
+  end
 
   @impl true
   def init(opts) do
@@ -139,13 +146,13 @@ defmodule ExUnitCluster.Manager do
     end
   end
 
-  def handle_call({:call, node, module, function, args}, _from, state) do
-    %NodeInfo{pid: pid} = Map.get(state.nodes, node)
-    res = peer_call(pid, module, function, args)
-    {:reply, res, state}
+  def handle_call({:get_peer_pid, node}, _from, %__MODULE__{} = state) do
+    case Map.get(state.nodes, node) do
+      nil -> {:reply, {:error, :not_found}, state}
+      %NodeInfo{pid: pid} -> {:reply, {:ok, pid}, state}
+    end
   end
 
-  # Top level API calls determine the timeout
   defp peer_call(dest, module, fun, args),
     do: :peer.call(dest, module, fun, args, :infinity)
 end
