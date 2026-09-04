@@ -40,7 +40,7 @@ defmodule ExUnitCluster.MixProject do
 
   defp package do
     [
-      files: ["lib", "mix.exs", "README.md", "LICENSE"],
+      files: ["lib", "mix.exs", "README.md", "LICENSE", "usage-rules.md"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url}
     ]
